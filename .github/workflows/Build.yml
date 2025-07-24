@@ -36,23 +36,12 @@ jobs:
       fail-fast: false
       matrix:
         targetPlatform:
-          - StandaloneWindows64
+          - StandaloneWindows64 # Build a Windows 64-bit standalone.
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           lfs: true
-          submodules: 'true' # Checkout submodules
-
-      # Install .NET SDK
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '6.0.x'
-
-      # Build Cesium for Unity
-      - name: Build CesiumForUnity
-        run: dotnet build Packages/com.cesium.unity/native~/build/CesiumForUnity.sln -c Release
 
       - uses: actions/cache@v3
         with:
