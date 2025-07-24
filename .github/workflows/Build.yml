@@ -32,27 +32,51 @@ jobs:
     needs: checklicense
     if: needs.checklicense.outputs.is_unity_license_set == 'true'
     runs-on: ubuntu-latest
+
     strategy:
       fail-fast: false
       matrix:
         targetPlatform:
-          - StandaloneWindows64 # Build a Windows 64-bit standalone.
+          - StandaloneWindows64
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository and submodules
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           lfs: true
+          submodules: true
 
-      - uses: actions/cache@v3
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '6.0.x'
+
+      - name: Install Native Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build clang g++ zip unzip
+
+      - name: Build Cesium native plugin (Reinterop)
+        run: |
+          mkdir -p Packages/com.cesium.unity/native~/build
+          cd Packages/com.cesium.unity/native~/build
+          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build . --config Release
+
+      - name: Cache Library folder
+        uses: actions/cache@v3
         with:
           path: Library
           key: Library-${{ matrix.targetPlatform }}
           restore-keys: Library-
 
-      - if: matrix.targetPlatform == 'Android'
+      - name: Free up disk space for Android (if needed)
+        if: matrix.targetPlatform == 'Android'
         uses: jlumbroso/free-disk-space@v1.3.1
 
-      - uses: game-ci/unity-builder@v4
+      - name: Build Unity project
+        uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
@@ -60,7 +84,8 @@ jobs:
         with:
           targetPlatform: ${{ matrix.targetPlatform }}
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
         with:
           name: Build-${{ matrix.targetPlatform }}
           path: build/${{ matrix.targetPlatform }}
