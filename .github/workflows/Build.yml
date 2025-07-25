@@ -59,8 +59,8 @@ jobs:
 
       - name: Build Cesium native plugin (Reinterop)
         run: |
-          mkdir -p Packages/com.cesium.unity/native~/build
-          cd Packages/com.cesium.unity/native~/build
+          mkdir -p Assets/Plugins/CesiumForUnity/native~/build
+          cd Assets/Plugins/CesiumForUnity/native~/build
           cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build . --config Release
 
