@@ -45,7 +45,7 @@ jobs:
         with:
           fetch-depth: 0
           lfs: true
-          submodules: true
+          submodules: 'recursive'
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
