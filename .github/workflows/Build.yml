@@ -1,58 +1,61 @@
-name: Build
+name: Build project
 
 on:
+  pull_request:
+    types: [opened, synchronize, reopened]
   push:
     branches:
-      - master
-  pull_request: {}
-  workflow_dispatch: {}
+      - main
 
 jobs:
   build:
     name: Build for ${{ matrix.targetPlatform }}
     runs-on: ubuntu-latest
-
     strategy:
       fail-fast: false
       matrix:
-        unityVersion: [2022.3.23f1]  # Change to your Unity version
-        targetPlatform: [StandaloneWindows64]
-
+        targetPlatform:
+          - StandaloneLinux64
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           lfs: true
-          submodules: true  # ⬅️ IMPORTANT for Cesium submodule
 
-      - name: Set up cache for Library folder
-        uses: actions/cache@v3
+      - uses: actions/cache@v3
         with:
           path: Library
           key: Library-${{ matrix.targetPlatform }}
           restore-keys: |
             Library-
 
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build g++ python3
-
-      - name: Build Cesium Native Bindings
-        working-directory: Assets/Plugins/CesiumForUnity
-        run: |
-          chmod +x build.sh
-          ./build.sh --target UnityEditor
-
-      - name: Build with Unity
-        uses: game-ci/unity-builder@v4
+      # Setup .NET SDK
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
-          unityVersion: ${{ matrix.unityVersion }}
-          projectPath: ./
+          dotnet-version: '6.0.x' # Cesium requires .NET 6.0 or later
+
+      # New step to build Reinterop
+      - name: Build Cesium Reinterop
+        run: |
+          cd Packages/com.cesium.unity
+          dotnet publish Reinterop~ -o .
+
+      - if: matrix.targetPlatform == 'Android'
+        uses: jlumbroso/free-disk-space@v1.3.1
+
+      - uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
           targetPlatform: ${{ matrix.targetPlatform }}
+          version: '2022.3.22f1'
+          allowDirtyBuild: true
+          customParameters: -myParameter myValue -myBoolean -myParameter2 myValue2
 
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: Build-${{ matrix.targetPlatform }}
+          name: build-${{ matrix.targetPlatform }}
           path: build/${{ matrix.targetPlatform }}
