@@ -57,12 +57,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build clang g++ zip unzip
 
-      - name: Build Cesium native plugin (Reinterop)
+      - name: Build Cesium native plugin
         run: |
           mkdir -p Assets/Plugins/CesiumForUnity/native~/build
           cd Assets/Plugins/CesiumForUnity/native~/build
           cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build . --config Release
+
+      # This is the new step to generate the C# bindings for Cesium.
+      - name: Build Cesium C# bindings (Reinterop)
+        run: dotnet publish Assets/Plugins/CesiumForUnity/Reinterop~ -o Assets/Plugins/CesiumForUnity
 
       - name: Cache Library folder
         uses: actions/cache@v3
