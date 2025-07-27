@@ -1,3 +1,6 @@
 [submodule "Assets/Plugins/CesiumForUnity"]
 	path = Assets/Plugins/CesiumForUnity
 	url = https://github.com/CesiumGS/cesium-unity.git
+[submodule "Assets/Assets/Plugins/CesiumForUnity"]
+	path = Assets/Assets/Plugins/CesiumForUnity
+	url = https://github.com/CesiumGS/cesium-unity.git

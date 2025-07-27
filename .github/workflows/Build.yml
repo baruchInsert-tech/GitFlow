@@ -1,4 +1,4 @@
-name: Build project
+name: Build
 
 on:
   push:
@@ -8,87 +8,50 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  checklicense:
-    name: Check for UNITY_LICENSE in GitHub Secrets
-    runs-on: ubuntu-latest
-    outputs:
-      is_unity_license_set: ${{ steps.checklicense_job.outputs.is_unity_license_set }}
-    steps:
-      - name: Check whether Unity activation should be done
-        id: checklicense_job
-        env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
-        run: |
-          if [[ -n "${UNITY_LICENSE}" ]]; then
-            echo "is_unity_license_set=true" >> $GITHUB_OUTPUT
-          else
-            echo "is_unity_license_set=false" >> $GITHUB_OUTPUT
-          fi
-
-  buildForAllSupportedPlatforms:
+  build:
     name: Build for ${{ matrix.targetPlatform }}
-    needs: checklicense
-    if: needs.checklicense.outputs.is_unity_license_set == 'true'
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
-        targetPlatform:
-          - StandaloneWindows64
+        unityVersion: [2022.3.23f1]  # Change to your Unity version
+        targetPlatform: [StandaloneWindows64]
 
     steps:
-      - name: Checkout repository and submodules
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           lfs: true
-          submodules: 'recursive'
+          submodules: true  # ⬅️ IMPORTANT for Cesium submodule
 
-      - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '6.0.x'
-
-      - name: Install Native Build Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build clang g++ zip unzip
-
-      - name: Build Cesium native plugin
-        run: |
-          mkdir -p Assets/Plugins/CesiumForUnity/native~/build
-          cd Assets/Plugins/CesiumForUnity/native~/build
-          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build . --config Release
-
-      # This is the new step to generate the C# bindings for Cesium.
-      - name: Build Cesium C# bindings (Reinterop)
-        run: dotnet publish Assets/Plugins/CesiumForUnity/Reinterop~ -o Assets/Plugins/CesiumForUnity
-
-      - name: Cache Library folder
+      - name: Set up cache for Library folder
         uses: actions/cache@v3
         with:
           path: Library
           key: Library-${{ matrix.targetPlatform }}
-          restore-keys: Library-
+          restore-keys: |
+            Library-
 
-      - name: Free up disk space for Android (if needed)
-        if: matrix.targetPlatform == 'Android'
-        uses: jlumbroso/free-disk-space@v1.3.1
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ python3
 
-      - name: Build Unity project
+      - name: Build Cesium Native Bindings
+        working-directory: Assets/Plugins/CesiumForUnity
+        run: |
+          chmod +x build.sh
+          ./build.sh --target UnityEditor
+
+      - name: Build with Unity
         uses: game-ci/unity-builder@v4
-        env:
-          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
-          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
-          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
+          unityVersion: ${{ matrix.unityVersion }}
+          projectPath: ./
           targetPlatform: ${{ matrix.targetPlatform }}
 
-      - name: Upload build artifact
+      - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Build-${{ matrix.targetPlatform }}
